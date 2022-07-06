@@ -140,11 +140,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Model.h" />
+    <ClInclude Include="Request.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="Tools.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
+    <ClCompile Include="Request.c" />
     <ClCompile Include="ServerHandler.c" />
     <ClCompile Include="Tools.c" />
   </ItemGroup>

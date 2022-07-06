@@ -44,6 +44,7 @@ APP* CreateServerIPV4(ULONG host, int port) {
 	app->serverM->server= server;
 	app->serverM->flag = 1;
 	app->cllen = sizeof(app->client);
+	app->requestM.method_len = 0;
 	return app;
 }
 
@@ -83,9 +84,41 @@ void* ClientControl(APP* app) {
 		//返回值为连接进来的 socket
 		merror(client, INVALID_SOCKET, "连接失败\n");
 		printf("连接成功\n");
-		/*pthread_t th;
-		pthread_create(&th, NULL, solve_client, client);*/
-		printf("1");
-		closesocket(client);
+		ClientSolver* temp = (ClientSolver*)malloc(sizeof(ClientSolver));
+		temp->client = client;
+		temp->method = app->requestM;
+		pthread_t th;
+		pthread_create(&th, NULL, SolveClient, temp);
+		/*printf("1");*/
 	}
+}
+
+void* SolveClient(ClientSolver* client) {
+	char recvdata[1024 * 5] = "";
+	//接收数据，默认为空
+	recv(client->client, recvdata, sizeof(recvdata), 0);	
+	//参数一：接收消息的来源
+	//参数二：接收消息的指针
+	//参数三：接收消息的指针的内存大小
+	//参数四：0表示默认的收发方式，一次性收完，等待流传输结束后一次收取
+
+	printf("%s 共接受%d字节数据\n\n", recvdata, strlen(recvdata));
+	RequestText text;
+	char* temp = NULL;
+	text.head = strtok_s(recvdata, "\n", &temp);
+	text.headers_len = 0;
+	char* header = NULL;
+	char* value = NULL;
+	do
+	{
+		header = strtok_s(NULL, "\r\n", &temp);
+		header = strtok_s(header, ":", &value);
+		text.headers[text.headers_len].key = header;
+		text.headers[text.headers_len].value = value;
+		text.headers_len++;
+	} while (header != NULL);
+
+	closesocket(client->client);
+	free(client);
+
 }

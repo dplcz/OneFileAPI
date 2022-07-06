@@ -6,7 +6,7 @@ int merror(int redata, int error, char* showTips) {
 		perror(showTips);
 		printf("\n");
 		getchar();
-		exit(-1);
+		exit(ERROR);
 	}
 	return 1;
 }
