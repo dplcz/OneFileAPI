@@ -141,9 +141,12 @@
   <ItemGroup>
     <ClInclude Include="Model.h" />
     <ClInclude Include="Server.h" />
+    <ClInclude Include="Tools.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main.c" />
     <ClCompile Include="ServerHandler.c" />
+    <ClCompile Include="Tools.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

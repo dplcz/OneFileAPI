@@ -1,18 +1,9 @@
 #include "Server.h"
 #include "Model.h"
+#include "Tools.h"
 
-int merror(int redata, int error, char* showTips) {
-	if (redata == error)
-	{
-		perror(showTips);
-		printf("\n");
-		getchar();
-		return -1;
-	}
-	return 1;
-}
 
-SOCKET createServerIPV4(ULONG host, int port) {
+APP* CreateServerIPV4(ULONG host, int port) {
 	/// <summary>
 	/// 默认配置
 	/// IPV4 TCP 流传输
@@ -44,5 +35,57 @@ SOCKET createServerIPV4(ULONG host, int port) {
 	// 绑定函数
 	isok = bind(server, (sockaddr*)&seraddr, sizeof(seraddr));
 	merror(isok, SOCKET_ERROR, "bind绑定信息失败\n");
-	return server;
+
+	APP* app = (APP*)malloc(sizeof(APP));
+	app->serverM = (SERVER*)malloc(sizeof(SERVER));
+
+	//监听客户端，第一个参数为监听者，第二个连接请求队列的最大长度
+	isok = listen(server, MAX_CONNECTION_QUEUE);
+	app->serverM->server= server;
+	app->serverM->flag = 1;
+	app->cllen = sizeof(app->client);
+	return app;
+}
+
+Status RunServer(APP *app) {
+	pthread_t th_server,th_client;
+	pthread_create(&th_server, NULL, ServerControl, app->serverM);
+	pthread_create(&th_client, NULL, ClientControl, app);
+	while (1);
+
+}
+
+void* ServerControl(SERVER* serverM) {
+	while (1) {
+		char temp[20];
+		scanf_s("%s",temp,20);
+		if (strcmp(temp, "stop") == 0 || strcmp(temp, "STOP") == 0)
+		{
+			closesocket(serverM->server);
+			serverM->flag = 0;
+		}
+	}
+}
+
+void* ClientControl(APP* app) {
+	while (1) {
+		printf("等待连接中...");
+		SOCKET client = accept(app->serverM->server, (sockaddr*)&app->client, &app->cllen);
+		if (app->serverM->flag == 0) {
+			closesocket(client);
+			free(app->serverM);
+			free(app);
+			exit(0);
+		}
+		//参数一：表示谁接受连接
+		//参数二：谁连接进来
+		//参数三：用来保存信息的结构体大小
+		//返回值为连接进来的 socket
+		merror(client, INVALID_SOCKET, "连接失败\n");
+		printf("连接成功\n");
+		/*pthread_t th;
+		pthread_create(&th, NULL, solve_client, client);*/
+		printf("1");
+		closesocket(client);
+	}
 }
