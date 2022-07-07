@@ -26,13 +26,13 @@ typedef struct sockaddr_in claddr;
 
 //请求方式
 typedef enum { GET = 1000, POST = 2000, HEAD = 3000 }METHODTYPE;
+//响应方式
+typedef enum { TEXT = 10, HTML = 20, XML = 30, JS = 40, JSON = 50, JPG = 60, JPEG = 60, JPE = 60, JFIF = 60, PNG = 70 }RESPONSETYPE;
 
-typedef char URI[50];
-typedef char NAME[20];
-typedef void* DATA;
-typedef void* DEFAULT;
-//回调函数
-typedef void(*CALLBACKFUNC)(void* args);
+typedef char* URI;
+typedef char* NAME;
+typedef char* DATA;
+typedef char* DEFAULT;
 
 typedef struct SERVER {
 	SOCKET server;
@@ -46,12 +46,15 @@ typedef struct PARAMS {
 	DEFAULT default_data;
 }PARAMS;
 
+//回调函数
+typedef void*(*CALLBACKFUNC)(PARAMS* args);
+
 //方法结构体
 typedef struct Method {
 	METHODTYPE type;
 	URI uri;
 	CALLBACKFUNC callback;
-	PARAMS* params;
+	PARAMS *params;
 	int param_len;
 }Method;
 
@@ -78,11 +81,27 @@ typedef struct Header {
 	char* value;
 }Header;
 
+typedef struct MainHeader {
+	char* method;
+	char* url;
+	char* version;
+}MainHeader;
+
+
 typedef struct Request {
-	char* head;
-	Header headers[25];
+	MainHeader head;
+	Header *headers;
 	int headers_len;
+	PARAMS *params;
+	int param_len;
 }RequestText;
+
+//响应
+typedef struct Response {
+	RESPONSETYPE type;
+	Header *headers;
+	char* filename;
+}Response;
 
 
 
