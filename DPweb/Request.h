@@ -6,6 +6,6 @@
 
 Status addMethod(APP* app, METHODTYPE type, URI uri, CALLBACKFUNC callback, PARAMS *params, int param_len);
 
-Response* createResponse(RESPONSETYPE type, char* data);
+Response* createResponse(RESPONSETYPE type, char* data, STATUSCODE code);
 
 Status addHeaders(Response* origin, char* key, char* value);

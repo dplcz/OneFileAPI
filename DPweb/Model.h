@@ -28,6 +28,8 @@ typedef struct sockaddr_in claddr;
 typedef enum { GET = 1000, POST = 2000, HEAD = 3000 }METHODTYPE;
 //响应方式
 typedef enum { TEXT = 10, HTML = 20, XML = 30, JS = 40, JSON = 50, JPG = 60, JPEG = 60, JPE = 60, JFIF = 60, PNG = 70 }RESPONSETYPE;
+//响应状态码
+typedef enum { SUCCESS = 200, CREATED = 201, BADREQUEST = 400, NOTFOUND = 404 }STATUSCODE;
 
 typedef char* URI;
 typedef char* NAME;
@@ -96,12 +98,18 @@ typedef struct Request {
 	int param_len;
 }RequestText;
 
+typedef struct ResData {
+	int if_file;
+	char* data;
+}ResData;
+
 //响应
 typedef struct Response {
 	RESPONSETYPE type;
+	STATUSCODE code;
 	Header *headers;
 	int headers_len;
-	char* data;
+	ResData data;
 }Response;
 
 

@@ -15,4 +15,10 @@ void* SolveClient(ClientSolver* client);
 int JudgeParam(Method method, RequestText* text);
 //处理GET请求
 int GetMethodSolve(ClientSolver* client, RequestText* text, int methodIndex);
+//发送响应报文
+char* SolveResponse(Response* orgin, ClientSolver* client);
+//获取状态码字符串
+char* GetStatusCode(STATUSCODE code);
+//拼接响应头的键值
+char* GetHeader(char* key, char* value);
 

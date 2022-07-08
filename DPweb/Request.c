@@ -9,13 +9,15 @@ Status addMethod(APP* app, METHODTYPE type, URI uri, CALLBACKFUNC callback, PARA
 	printf("装载方法 %s 成功\n", uri);
 }
 
-Response* createResponse(RESPONSETYPE type, char* data) {
+Response* createResponse(RESPONSETYPE type, char* data,STATUSCODE code) {
 	//注意释放内存
 	Response* response = (Response*)malloc(sizeof(Response));
 	//response.headers = (Header*)malloc(sizeof(Header));
 	response->type = type;
 	response->headers_len = 0;
-	response->data = data;
+	response->data.if_file = 1;
+	response->data.data = data;
+	response->code = code;
 	addHeaders(response, "Server", "DPweb");
 	switch (type)
 	{

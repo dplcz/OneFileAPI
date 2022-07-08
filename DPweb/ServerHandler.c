@@ -181,14 +181,16 @@ void* SolveClient(ClientSolver* client) {
 	else if (strcmp(text.head.method, "POST") == 0) {
 
 	}
-	char dont_allow[] = "HTTP/1.1 404 OK\r\n\r\nNot Found";
+	char dont_allow[] = "HTTP/1.1 404 Not Found\r\n\r\nMethod Don't Allow";
 	if (!flag)
 	{
 		send(client->client, dont_allow, strlen(dont_allow), 0);
 	}
 	closesocket(client->client);
-	free(text.params);
-	free(text.headers);
+	if (text.param_len > 0)
+		free(text.params);
+	if (text.headers_len > 0)
+		free(text.headers);
 	free(client);
 
 }
@@ -206,8 +208,79 @@ int JudgeParam(Method method, RequestText* text) {
 
 int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
 	Response *res = (Response*)client->method.methods[methodIndex].callback(text->params);
-	printf("666");
+	//printf("666");
+	char* sendTemp = SolveResponse(res, client);
 	free(res->headers);
 	free(res);
 	return 1;
+}
+
+char* SolveResponse(Response* orgin, ClientSolver* client) {
+	if (orgin->data.if_file) {
+		if (orgin->type < 60) {
+			FILE* p_file;
+			errno_t err = fopen_s(&p_file, orgin->data.data, "rb");
+			int if_first = 1;
+			int p_pos = 0;
+			int size_num;
+			if (err != 0)
+			{
+				printf("文件打开失败\n");
+				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Allow";
+				send(client->client, temp, sizeof(temp), 0);
+				return;
+			}
+			char head[1024] = "";
+			char temp_code[50] = "";
+			strcpy_s(temp_code, 50, GetStatusCode(orgin->code));
+			strcat_s(head, sizeof(head), temp_code);
+			for (int i = 0; i < orgin->headers_len; i++)
+			{
+				char temp[50] = "";
+				strcpy_s(temp, 50, GetHeader(orgin->headers[i].key, orgin->headers[i].value));
+				strcat_s(head, sizeof(head), temp);
+			}
+			strcat_s(head, sizeof(head), "\r\n");
+			/*printf("%s", head);*/
+			send(client->client, head, strlen(head), 0);
+			char* tempdata = (char*)malloc(sizeof(char) * 1024);
+			do
+			{
+				fgets(tempdata, 1024, p_file);
+				send(client->client, tempdata, strlen(tempdata), 0);
+			} while (!feof(p_file));
+			fclose(p_file);
+			free(tempdata);
+		}
+	}
+}
+
+char* GetStatusCode(STATUSCODE code) {
+	switch (code)
+	{
+	case SUCCESS:
+		return "HTTP/1.1 200 OK\r\n";
+		break;
+	case CREATED:
+		return "HTTP/1.1 201 Created\r\n";
+		break;
+	case BADREQUEST:
+		return "HTTP/1.1 400 Bad Request\r\n";
+		break;
+	case NOTFOUND:
+		return "HTTP/1.1 404 Not Found\r\n";
+		break;
+	default:
+		break;
+	}
+}
+
+char* GetHeader(char* key, char* value) {
+	char headers[1024] = "";
+	char temp[] = ": ";
+	strcat_s(headers, 1024, key);
+	strcat_s(headers, 1024, temp);
+	strcat_s(headers, 1024, value);
+	strcat_s(headers, 1024, "\r\n");
+	return headers;
 }
