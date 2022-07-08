@@ -57,7 +57,9 @@ typedef struct Method {
 	URI uri;
 	CALLBACKFUNC callback;
 	PARAMS *params;
+	char* directory;
 	int param_len;
+	int if_static;
 }Method;
 
 //方法列表结构体

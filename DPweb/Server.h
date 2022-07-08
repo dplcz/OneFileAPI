@@ -13,10 +13,12 @@ void* ClientControl(APP *app);
 void* SolveClient(ClientSolver* client);
 //判断参数类型是否匹配
 int JudgeParam(Method method, RequestText* text);
+//处理静态文件请求
+int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, char* path);
 //处理GET请求
 int GetMethodSolve(ClientSolver* client, RequestText* text, int methodIndex);
 //发送响应报文
-char* SolveResponse(Response* orgin, ClientSolver* client);
+int SolveResponse(Response* orgin, ClientSolver* client);
 //获取状态码字符串
 char* GetStatusCode(STATUSCODE code);
 //拼接响应头的键值

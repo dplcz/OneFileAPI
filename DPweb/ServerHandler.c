@@ -139,7 +139,7 @@ void* SolveClient(ClientSolver* client) {
 		param_1 = strtok_s(param_1, "&", &param_2);
 		text.params[text.param_len].name = strtok_s(NULL,"=",&param_1);
 		text.params[text.param_len].data = param_1;
-		printf("key: %s value:%s", text.params[text.param_len].name, text.params[text.param_len].data);
+		//printf("key: %s value:%s", text.params[text.param_len].name, text.params[text.param_len].data);
 		text.param_len++;
 		param_1 = NULL;
 	} 
@@ -174,9 +174,29 @@ void* SolveClient(ClientSolver* client) {
 	} while (header != NULL);
 	if (strcmp(text.head.method, "GET") == 0)
 		for (int i = 0; i < client->method.method_len; i++) {
-			if (client->method.methods[i].type == GET && strcmp(client->method.methods[i].uri, text.head.url) == 0)
-				if (JudgeParam(client->method.methods[i], &text))
-					flag = GetMethodSolve(client, &text, i);
+			if (client->method.methods[i].if_static == 0) {
+				if (client->method.methods[i].type == GET && strcmp(client->method.methods[i].uri, text.head.url) == 0)
+					if (JudgeParam(client->method.methods[i], &text))
+						flag = GetMethodSolve(client, &text, i);
+			}
+			else
+			{
+				char temp_url[100] = "";
+				char rule[50];
+				char temp_path[100] = "";
+				char file_path[150] = "";
+
+				strcpy_s(rule, 50, client->method.methods[i].uri);
+				strcat_s(rule, 50, "/%s");
+				strcpy_s(temp_url, 100, text.head.url);
+				sscanf_s(temp_url, rule, temp_path, 100);
+				if (strcmp(temp_path, "") != 0) {
+					strcat_s(file_path, 150, client->method.methods[i].directory);
+					strcat_s(file_path, 150, "/");
+					strcat_s(file_path, 150, temp_path);
+					flag = GetStaticSolve(client, &text, i, file_path);
+				}
+			}
 		}
 	else if (strcmp(text.head.method, "POST") == 0) {
 
@@ -207,15 +227,33 @@ int JudgeParam(Method method, RequestText* text) {
 }
 
 int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
-	Response *res = (Response*)client->method.methods[methodIndex].callback(text->params);
+	Response* res = NULL;
+	if (client->method.methods[methodIndex].callback != NULL)
+		res = (Response*)client->method.methods[methodIndex].callback(text->params);
 	//printf("666");
-	char* sendTemp = SolveResponse(res, client);
+	int sendTemp = SolveResponse(res, client);
 	free(res->headers);
 	free(res);
 	return 1;
 }
 
-char* SolveResponse(Response* orgin, ClientSolver* client) {
+int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, char* path) {
+	Response* res = (Response*)malloc(sizeof(Response));
+	res->type = TEXT;
+	res->code = SUCCESS;
+	res->headers = (Header*)malloc(sizeof(Header));
+	res->headers[0].key = "Server";
+	res->headers[0].value = "DPweb";
+	res->headers_len = 1;
+	res->data.if_file = 1;
+	res->data.data = path;
+	int sendTemp = SolveResponse(res, client);
+	free(res->headers);
+	free(res);
+	return 1;
+}
+
+int SolveResponse(Response* orgin, ClientSolver* client) {
 	if (orgin->data.if_file) {
 		if (orgin->type < 60) {
 			FILE* p_file;
@@ -226,7 +264,7 @@ char* SolveResponse(Response* orgin, ClientSolver* client) {
 			if (err != 0)
 			{
 				printf("文件打开失败\n");
-				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Allow";
+				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
 				send(client->client, temp, sizeof(temp), 0);
 				return;
 			}

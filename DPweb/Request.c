@@ -4,9 +4,23 @@ Status addMethod(APP* app, METHODTYPE type, URI uri, CALLBACKFUNC callback, PARA
 	app->requestM.methods[app->requestM.method_len].uri = uri;
 	app->requestM.methods[app->requestM.method_len].callback = callback;
 	app->requestM.methods[app->requestM.method_len].params = params;
+	app->requestM.methods[app->requestM.method_len].directory = NULL;
 	app->requestM.methods[app->requestM.method_len].param_len = param_len;
+	app->requestM.methods[app->requestM.method_len].if_static = 0;
 	app->requestM.method_len++;
 	printf("装载方法 %s 成功\n", uri);
+}
+
+Status addStaticFile(APP* app, URI uri, char* directory) {
+	app->requestM.methods[app->requestM.method_len].type = GET;
+	app->requestM.methods[app->requestM.method_len].uri = uri;
+	app->requestM.methods[app->requestM.method_len].callback = NULL;
+	app->requestM.methods[app->requestM.method_len].params = NULL;
+	app->requestM.methods[app->requestM.method_len].directory = directory;
+	app->requestM.methods[app->requestM.method_len].param_len = 0;
+	app->requestM.methods[app->requestM.method_len].if_static = 1;
+	app->requestM.method_len++;
+	printf("装载静态文件夹 %s 成功\n", uri);
 }
 
 Response* createResponse(RESPONSETYPE type, char* data,STATUSCODE code) {
