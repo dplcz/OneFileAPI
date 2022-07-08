@@ -100,7 +100,8 @@ typedef struct Request {
 typedef struct Response {
 	RESPONSETYPE type;
 	Header *headers;
-	char* filename;
+	int headers_len;
+	char* data;
 }Response;
 
 

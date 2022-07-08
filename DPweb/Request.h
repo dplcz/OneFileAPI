@@ -4,8 +4,8 @@
 
 
 
-int addMethod(APP* app, METHODTYPE type, URI uri, CALLBACKFUNC callback, PARAMS *params, int param_len);
+Status addMethod(APP* app, METHODTYPE type, URI uri, CALLBACKFUNC callback, PARAMS *params, int param_len);
 
-void addHeaders(Header originHeader, char* key, char* value);
+Response* createResponse(RESPONSETYPE type, char* data);
 
-Response response(RESPONSETYPE type, Header headers[], char* filename);
+Status addHeaders(Response* origin, char* key, char* value);

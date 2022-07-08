@@ -119,13 +119,14 @@ void* SolveClient(ClientSolver* client) {
 	param_2 = param_1;
 	while (param_2 != NULL && strcmp(param_2, "") != 0)
 	{
+		
 		if (text.param_len == 0)
 			//注意释放内存
-			text.params = (PARAMS*)malloc(sizeof(PARAMS*));
+			text.params = (PARAMS*)malloc(sizeof(PARAMS));
 		else
 		{
 			PARAMS* tmp = NULL;
-			tmp = (PARAMS*)realloc(text.params, sizeof(PARAMS*));
+			tmp = (PARAMS*)realloc(text.params, sizeof(PARAMS) * (text.param_len + 1));
 			if (tmp != NULL)
 				text.params = tmp;
 			else
@@ -143,6 +144,7 @@ void* SolveClient(ClientSolver* client) {
 		param_1 = NULL;
 	} 
 	text.headers_len = 0;
+	text.headers = NULL;
 	char* header = NULL;
 	char* value = NULL;
 	//分解请求头
@@ -150,11 +152,11 @@ void* SolveClient(ClientSolver* client) {
 	{
 		if (text.headers_len == 0)
 			//注意释放内存
-			text.headers = (Header*)malloc(sizeof(Header*));
+			text.headers = (Header*)malloc(sizeof(Header));
 		else
 		{
 			Header* tmp = NULL;
-			tmp = (Header*)realloc(text.headers, sizeof(Header*));
+			tmp = (Header*)realloc(text.headers, sizeof(Header) * (text.headers_len + 1));
 			if (tmp != NULL)
 				text.headers = tmp;
 			else
@@ -203,7 +205,9 @@ int JudgeParam(Method method, RequestText* text) {
 }
 
 int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
-	int *a = (int*)client->method.methods[methodIndex].callback(text->params);
-	printf("%d", *a);
+	Response *res = (Response*)client->method.methods[methodIndex].callback(text->params);
+	printf("666");
+	free(res->headers);
+	free(res);
 	return 1;
 }
