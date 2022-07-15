@@ -1,6 +1,7 @@
 #pragma once
 #include<stdio.h>
 #include<stdlib.h>
+#include<time.h>
 #include<WinSock2.h>
 #include<WS2tcpip.h>
 #include<pthread.h>

@@ -70,7 +70,7 @@ void* ServerControl(SERVER* serverM) {
 
 void* ClientControl(APP* app) {
 	while (1) {
-		printf("等待连接中...");
+		//printf("等待连接中...");
 		SOCKET client = accept(app->serverM->server, (sockaddr*)&app->client, &app->cllen);
 		if (app->serverM->flag == 0) {
 			closesocket(client);
@@ -83,7 +83,7 @@ void* ClientControl(APP* app) {
 		//参数三：用来保存信息的结构体大小
 		//返回值为连接进来的 socket
 		merror(client, INVALID_SOCKET, "连接失败\n");
-		printf("连接成功\n");
+		//printf("连接成功\n");
 		ClientSolver* temp = (ClientSolver*)malloc(sizeof(ClientSolver));
 		temp->client = client;
 		temp->method = app->requestM;
@@ -103,7 +103,7 @@ void* SolveClient(ClientSolver* client) {
 	//参数三：接收消息的指针的内存大小
 	//参数四：0表示默认的收发方式，一次性收完，等待流传输结束后一次收取
 
-	printf("共接受%d字节数据\n", strlen(recvdata));
+	//printf("共接受%d字节数据\n", strlen(recvdata));
 	RequestText text;
 	char* temp = NULL;
 	//分解报文头
@@ -172,7 +172,7 @@ void* SolveClient(ClientSolver* client) {
 		text.headers[text.headers_len].value = value;
 		text.headers_len++;
 	} while (header != NULL);
-	if (strcmp(text.head.method, "GET") == 0)
+	if (strcmp(text.head.method, "GET") == 0) {
 		for (int i = 0; i < client->method.method_len; i++) {
 			if (client->method.methods[i].if_static == 0) {
 				if (client->method.methods[i].type == GET && strcmp(client->method.methods[i].uri, text.head.url) == 0)
@@ -198,6 +198,12 @@ void* SolveClient(ClientSolver* client) {
 				}
 			}
 		}
+		time_t time_seconds = time(0);
+		struct tm ptm;
+		localtime_s(&ptm, &time_seconds);
+		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  GET \"%s  %s\"  ", ptm.tm_year + 1900, ptm.tm_mon + 1,
+			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version);
+	}
 	else if (strcmp(text.head.method, "POST") == 0) {
 
 	}
@@ -277,7 +283,7 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			int size_num;
 			if (err != 0)
 			{
-				printf("文件打开失败\n");
+				printf("文件打开失败");
 				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
 				send(client->client, temp, sizeof(temp), 0);
 				return;
@@ -332,7 +338,7 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			int size_num;
 			if (err != 0)
 			{
-				printf("文件打开失败\n");
+				printf("文件打开失败");
 				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
 				send(client->client, temp, sizeof(temp), 0);
 				return;
