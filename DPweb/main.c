@@ -13,6 +13,6 @@ void* test(PARAMS *params) {
 void main() {
 	APP* app = CreateServerIPV4(INADDR_ANY, 80);
 	addMethod(app, GET, "/index", test, NULL, 0);
-	addStaticFile(app, "/base", "./static");
+	addStaticFile(app, "/base", "E:/c_code/DPweb/static");
 	Status status = RunServer(app);
 }

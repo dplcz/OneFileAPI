@@ -27,6 +27,9 @@
     <ClInclude Include="Request.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Mysqlcon.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ServerHandler.c">

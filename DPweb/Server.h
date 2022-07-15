@@ -23,4 +23,5 @@ int SolveResponse(Response* orgin, ClientSolver* client);
 char* GetStatusCode(STATUSCODE code);
 //拼接响应头的键值
 char* GetHeader(char* key, char* value);
-
+//判断文件类型
+int JudgeType(char* path);

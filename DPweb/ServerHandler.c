@@ -103,7 +103,7 @@ void* SolveClient(ClientSolver* client) {
 	//参数三：接收消息的指针的内存大小
 	//参数四：0表示默认的收发方式，一次性收完，等待流传输结束后一次收取
 
-	printf("共接受%d字节数据\n\n", strlen(recvdata));
+	printf("共接受%d字节数据\n", strlen(recvdata));
 	RequestText text;
 	char* temp = NULL;
 	//分解报文头
@@ -239,7 +239,21 @@ int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
 
 int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, char* path) {
 	Response* res = (Response*)malloc(sizeof(Response));
-	res->type = TEXT;
+	int file_type = JudgeType(path);
+	if (file_type == 0)
+		res->type = TEXT;
+	else if (file_type == 1)
+		res->type = JPG;
+	else if (file_type == 2)
+		res->type = PNG;
+	else if (file_type == 3)
+		res->type = HTML;
+	else if (file_type == 4)
+		res->type = JS;
+	else if (file_type == 5)
+		res->type = CSS;
+	else if (file_type == 6)
+		res->type = XML;
 	res->code = SUCCESS;
 	res->headers = (Header*)malloc(sizeof(Header));
 	res->headers[0].key = "Server";
@@ -255,7 +269,7 @@ int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, cha
 
 int SolveResponse(Response* orgin, ClientSolver* client) {
 	if (orgin->data.if_file) {
-		if (orgin->type < 60) {
+		if (orgin->type < JPEG) {
 			FILE* p_file;
 			errno_t err = fopen_s(&p_file, orgin->data.data, "rb");
 			int if_first = 1;
@@ -271,14 +285,33 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			char head[1024] = "";
 			char temp_code[50] = "";
 			strcpy_s(temp_code, 50, GetStatusCode(orgin->code));
-			strcat_s(head, sizeof(head), temp_code);
+
+			strcat_s(head, 1024, temp_code);
+			if(orgin->type==HTML)
+				strcat_s(head, 1024, "Content-Type: text/html;charset=utf-8\r\n");
+			else if(orgin->type == JS)
+				strcat_s(head, 1024, "Content-Type: application/javascript;charset=utf-8\r\n");
+			else if (orgin->type == CSS)
+				strcat_s(head, 1024, "Content-Type: text/css;charset=utf-8\r\n");
+			else if (orgin->type == XML)
+				strcat_s(head, 1024, "Content-Type: text/xml;charset=utf-8\r\n");
+			strcat_s(head, 1024, "Content-Length: ");
+			if (fseek(p_file, 0, SEEK_END) == 0) 
+			{
+				size_num = ftell(p_file);
+				char size_str[10];
+				_itoa_s(size_num, size_str, 10, 10);
+				strcat_s(head, 1024, size_str);
+				strcat_s(head, 1024, "\r\n");
+				rewind(p_file);
+			}
 			for (int i = 0; i < orgin->headers_len; i++)
 			{
 				char temp[50] = "";
 				strcpy_s(temp, 50, GetHeader(orgin->headers[i].key, orgin->headers[i].value));
-				strcat_s(head, sizeof(head), temp);
+				strcat_s(head, 1024, temp);
 			}
-			strcat_s(head, sizeof(head), "\r\n");
+			strcat_s(head, 1024, "\r\n");
 			/*printf("%s", head);*/
 			send(client->client, head, strlen(head), 0);
 			char* tempdata = (char*)malloc(sizeof(char) * 1024);
@@ -286,6 +319,66 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			{
 				fgets(tempdata, 1024, p_file);
 				send(client->client, tempdata, strlen(tempdata), 0);
+			} while (!feof(p_file));
+			fclose(p_file);
+			free(tempdata);
+		}
+		// 图片文件
+		else if (orgin->type >= JPEG && orgin->type < 80)
+		{
+			FILE* p_file;
+			errno_t err = fopen_s(&p_file, orgin->data.data, "rb");
+			int p_pos = 0;
+			int size_num;
+			if (err != 0)
+			{
+				printf("文件打开失败\n");
+				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
+				send(client->client, temp, sizeof(temp), 0);
+				return;
+			}
+			char head[1024] = "";
+			char temp_code[50] = "";
+			strcpy_s(temp_code, 50, GetStatusCode(orgin->code));
+			strcat_s(temp_code, 50, "Content-Length: ");
+			strcat_s(head, 1024, temp_code);
+			if (fseek(p_file, 0, SEEK_END) == 0)
+			{
+				size_num = ftell(p_file);
+				char size_str[10];
+				_itoa_s(size_num, size_str, 10, 10);
+				strcat_s(head, 1024, size_str);
+				strcat_s(head, 1024, "\r\n");
+				if (orgin->type == JPEG)
+					strcat_s(head, 1024, "Content-Type: image/jpeg\r\n");
+				else
+					strcat_s(head, 1024, "Content-Type: image/png\r\n");
+				for (int i = 0; i < orgin->headers_len; i++)
+				{
+					char temp[50] = "";
+					strcpy_s(temp, 50, GetHeader(orgin->headers[i].key, orgin->headers[i].value));
+					strcat_s(head, 1024, temp);
+				}
+				strcat_s(head, 1024, "\r\n");
+				rewind(p_file);
+				send(client->client, head, strlen(head), 0);
+			}
+			char* tempdata = (char*)malloc(sizeof(char) * 1024);
+			do {
+				fgets(tempdata, 1024, p_file);
+				p_pos += strlen(tempdata);
+				fseek(p_file, p_pos, SEEK_SET);
+				int f_pos = ftell(p_file);
+				if (strlen(tempdata) == 0)
+				{
+					send(client->client, "\x00", 1, 0);
+					p_pos += 1;
+					fseek(p_file, p_pos, SEEK_SET);
+				}
+				else
+					send(client->client, tempdata, strlen(tempdata), 0);
+				if (size_num == p_pos)
+					break;
 			} while (!feof(p_file));
 			fclose(p_file);
 			free(tempdata);
@@ -321,4 +414,35 @@ char* GetHeader(char* key, char* value) {
 	strcat_s(headers, 1024, value);
 	strcat_s(headers, 1024, "\r\n");
 	return headers;
+}
+
+int JudgeType(char* path) {
+	char* file_type = strstr(path, ".jpeg");
+	if (file_type != NULL)
+		return 1;
+	file_type = strstr(path, ".jpe");
+	if (file_type != NULL)
+		return 1;
+	file_type = strstr(path, ".jpg");
+	if (file_type != NULL)
+		return 1;
+	file_type = strstr(path, ".jfif");
+	if (file_type != NULL)
+		return 1;
+	file_type = strstr(path, ".png");
+	if (file_type != NULL)
+		return 2;
+	file_type = strstr(path, ".html");
+	if (file_type != NULL)
+		return 3;
+	file_type = strstr(path, ".js");
+	if (file_type != NULL)
+		return 4;
+	file_type = strstr(path, ".css");
+	if (file_type != NULL)
+		return 5;
+	file_type = strstr(path, ".xml");
+	if (file_type != NULL)
+		return 6;
+	return 0;
 }

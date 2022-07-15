@@ -4,9 +4,12 @@
 #include<WinSock2.h>
 #include<WS2tcpip.h>
 #include<pthread.h>
+#include<mysql/mysql.h>
 #define ERROR -1
 #define OK 1
 
+//导入MySQL包
+#pragma comment(lib,"libmysql")
 //导入Socket包----------------
 #pragma comment(lib,"ws2_32.lib")
 //导入多线程包
@@ -27,7 +30,7 @@ typedef struct sockaddr_in claddr;
 //请求方式
 typedef enum { GET = 1000, POST = 2000, HEAD = 3000 }METHODTYPE;
 //响应方式
-typedef enum { TEXT = 10, HTML = 20, XML = 30, JS = 40, JSON = 50, JPG = 60, JPEG = 60, JPE = 60, JFIF = 60, PNG = 70 }RESPONSETYPE;
+typedef enum { TEXT = 0, HTML = 10, XML = 20, JS = 30, JSON = 40, CSS = 50,  JPG = 60, JPEG = 60, JPE = 60, JFIF = 60, PNG = 70 }RESPONSETYPE;
 //响应状态码
 typedef enum { SUCCESS = 200, CREATED = 201, BADREQUEST = 400, NOTFOUND = 404 }STATUSCODE;
 
