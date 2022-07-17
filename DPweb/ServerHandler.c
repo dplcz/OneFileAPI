@@ -95,7 +95,7 @@ void* ClientControl(APP* app) {
 void* SolveClient(ClientSolver* client) {
 	//是否处理成功
 	int flag = 0;
-	char recvdata[1024 * 5] = "";
+	char recvdata[50 * 1024] = "";
 	//接收数据，默认为空
 	recv(client->client, recvdata, sizeof(recvdata), 0);	
 	//参数一：接收消息的来源
@@ -104,7 +104,11 @@ void* SolveClient(ClientSolver* client) {
 	//参数四：0表示默认的收发方式，一次性收完，等待流传输结束后一次收取
 
 	//printf("共接受%d字节数据\n", strlen(recvdata));
+	//printf("%s\n", recvdata);
 	RequestText text;
+	char postdata[50 * 1024] = "";
+	
+	strcpy_s(postdata, 50 * 1024, strstr(recvdata, "\r\n\r\n"));
 	char* temp = NULL;
 	//分解报文头
 	char* temp_head = strtok_s(recvdata, "\r\n", &temp);
@@ -145,6 +149,8 @@ void* SolveClient(ClientSolver* client) {
 	} 
 	text.headers_len = 0;
 	text.headers = NULL;
+	text.post_data.boundary = NULL;
+	text.post_data.length = 0;
 	char* header = NULL;
 	char* value = NULL;
 	//分解请求头
@@ -170,14 +176,28 @@ void* SolveClient(ClientSolver* client) {
 		header = strtok_s(header, ":", &value);
 		text.headers[text.headers_len].key = header;
 		text.headers[text.headers_len].value = value;
+		if (strcmp(value, "") == 0) 
+		{
+			text.post_data.boundary = header;
+			break;
+		}
+		else if (strcmp(header, "Content-Length") == 0)
+			text.post_data.length = atoi(value);
 		text.headers_len++;
 	} while (header != NULL);
+	if(strcmp(postdata,"\r\n\r\n")==0)
+	{
+
+	}
 	if (strcmp(text.head.method, "GET") == 0) {
 		for (int i = 0; i < client->method.method_len; i++) {
 			if (client->method.methods[i].if_static == 0) {
 				if (client->method.methods[i].type == GET && strcmp(client->method.methods[i].uri, text.head.url) == 0)
 					if (JudgeParam(client->method.methods[i], &text))
+					{
 						flag = GetMethodSolve(client, &text, i);
+						break;
+					}
 			}
 			else
 			{
@@ -201,11 +221,26 @@ void* SolveClient(ClientSolver* client) {
 		time_t time_seconds = time(0);
 		struct tm ptm;
 		localtime_s(&ptm, &time_seconds);
-		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  GET \"%s  %s\"  ", ptm.tm_year + 1900, ptm.tm_mon + 1,
-			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version);
+		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  GET  \"%s  %s\" - %d", ptm.tm_year + 1900, ptm.tm_mon + 1,
+			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version, flag);
 	}
 	else if (strcmp(text.head.method, "POST") == 0) {
-
+		for (int i = 0; i < client->method.method_len; i++) {
+			if (client->method.methods[i].if_static == 0) {
+				if (client->method.methods[i].type == POST && strcmp(client->method.methods[i].uri, text.head.url) == 0)
+					if (JudgeParam(client->method.methods[i], &text))
+					{
+						flag = PostMethodSolve(client, &text, i, postdata);
+						break;
+					}
+			}
+		}
+		time_t time_seconds = time(0);
+		struct tm ptm;
+		localtime_s(&ptm, &time_seconds);
+		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  POST \"%s  %s\" - %d", ptm.tm_year + 1900, ptm.tm_mon + 1,
+			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version, flag);
+		
 	}
 	char dont_allow[] = "HTTP/1.1 404 Not Found\r\n\r\nMethod Don't Allow";
 	if (!flag)
@@ -217,8 +252,9 @@ void* SolveClient(ClientSolver* client) {
 		free(text.params);
 	if (text.headers_len > 0)
 		free(text.headers);
+	if (flag && text.post_data.length > 0)
+		free(text.post_data.data);
 	free(client);
-
 }
 
 int JudgeParam(Method method, RequestText* text) {
@@ -241,6 +277,111 @@ int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
 	free(res->headers);
 	free(res);
 	return 1;
+}
+
+int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, char* postData) {
+	Response* res = NULL;
+	char data[50 * 1024];
+	//char main_data_temp[50 * 1024];
+	char main_data[50 * 1024];
+	if (client->method.methods[methodIndex].callback != NULL) {
+		if (text->post_data.boundary != NULL && postData != NULL)
+		{
+			int start_pos = strlen(text->post_data.boundary) + 6;
+			int end_pos = strlen(postData) - 2 * strlen(text->post_data.boundary) - 12;
+			memcpy(data, postData + start_pos, end_pos);
+			data[end_pos] = '\0';
+			if (data == NULL)
+				return 0;
+			char* strstr_temp = strstr(data, "\r\n\r\n");
+			if (strstr_temp == NULL)
+				return 0;
+			strcpy_s(main_data, 50 * 1024, strstr_temp);
+			memcpy(main_data, &main_data[4], strlen(main_data));
+			if (data != NULL)
+				text->post_data.length = 0;
+			if (text->param_len != 0) {
+				PARAMS* tmp = NULL;
+				tmp = (PARAMS*)realloc(text->params, sizeof(PARAMS) * (text->param_len + 1));
+				if (tmp != NULL)
+					text->params = tmp;
+				else
+				{
+					printf("内存分配失败！");
+					free(text->params);
+					exit(-1);
+				}
+			}
+			else
+				text->params = (PARAMS*)malloc(sizeof(PARAMS));
+			char* temp = NULL;
+			if (data != NULL)
+			{
+				if (temp == NULL) 
+				{
+					char* temp_head = strtok_s(data, "\r\n", &temp);
+					do {
+						char* key = NULL;
+						char* key_temp = NULL;
+						char* value = NULL;
+						char* value_temp = NULL;
+						key = strtok_s(temp_head, ":", &value);
+
+						if (text->post_data.length == 0)
+							//注意释放内存
+							text->post_data.data = (Data*)malloc(sizeof(Data));
+						else
+						{
+							Data* tmp = NULL;
+							tmp = (Data*)realloc(text->post_data.data, sizeof(Data) * (text->post_data.length + 1));
+							if (tmp != NULL)
+								text->post_data.data = tmp;
+							else
+							{
+								printf("内存分配失败！");
+								free(text->post_data.data);
+								exit(-1);
+							}
+						}
+						text->post_data.data[text->post_data.length].filename = NULL;
+						text->post_data.data[text->post_data.length].name = NULL;
+						text->post_data.data[text->post_data.length].type = NULL;
+						while (strcmp("", value) != 0)
+						{
+							key_temp = strtok_s(NULL, "; ", &value);
+							value_temp = strtok_s(NULL, "=", &key_temp);
+							if (strcmp(key_temp, "") == 0)
+								text->post_data.data[text->post_data.length].type = value_temp;
+							else
+							{
+								if (strcmp("name", value_temp) == 0)
+								{
+									char tmp[20];
+									sscanf_s(key_temp, "\"%[^\"]", tmp, 20);
+									text->post_data.data[text->post_data.length].name = tmp;
+								}
+								else if (strcmp("filename", value_temp) == 0)
+								{
+									char tmp[20];
+									sscanf_s(key_temp, "\"%[^\"]", tmp, 20);
+									text->post_data.data[text->post_data.length].filename = tmp;
+								}
+							}
+						}
+						rsize_t size = 50 * 1024;
+						strcpy_s(text->post_data.data[text->post_data.length].data, size, main_data);
+						text->post_data.length++;
+						break;
+					} while (temp_head != NULL);
+				}
+			}
+		}
+		res = (Response*)client->method.methods[methodIndex].callback(text->params, text->post_data);
+	}
+	int sendTemp = SolveResponse(res, client);
+	free(res->headers);
+	free(res);
+	return sendTemp;
 }
 
 int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, char* path) {
@@ -270,7 +411,7 @@ int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, cha
 	int sendTemp = SolveResponse(res, client);
 	free(res->headers);
 	free(res);
-	return 1;
+	return sendTemp;
 }
 
 int SolveResponse(Response* orgin, ClientSolver* client) {
@@ -283,10 +424,10 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			int size_num;
 			if (err != 0)
 			{
-				printf("文件打开失败");
+				//printf("文件打开失败");
 				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
 				send(client->client, temp, sizeof(temp), 0);
-				return;
+				return NOTFOUND;
 			}
 			char head[1024] = "";
 			char temp_code[50] = "";
@@ -338,10 +479,10 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			int size_num;
 			if (err != 0)
 			{
-				printf("文件打开失败");
+				//printf("文件打开失败");
 				char temp[] = "HTTP/1.1 404 Not Found\r\n\r\nFile Don't Find";
 				send(client->client, temp, sizeof(temp), 0);
-				return;
+				return NOTFOUND;
 			}
 			char head[1024] = "";
 			char temp_code[50] = "";
@@ -390,6 +531,30 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			free(tempdata);
 		}
 	}
+	else
+	{
+		char head[1024] = "";
+		char temp_code[50] = "";
+		strcpy_s(temp_code, 50, GetStatusCode(orgin->code));
+		strcat_s(head, 1024, temp_code);
+		strcat_s(head, 1024, "Content-Type: text/*;charset=utf-8\r\n");
+		strcat_s(head, 1024, "Content-Length: ");
+		int size_num = strlen(orgin->data.data);
+		char size_str[10];
+		_itoa_s(size_num, size_str, 10, 10);
+		strcat_s(head, 1024, size_str);
+		strcat_s(head, 1024, "\r\n");
+		for (int i = 0; i < orgin->headers_len; i++)
+		{
+			char temp[50] = "";
+			strcpy_s(temp, 50, GetHeader(orgin->headers[i].key, orgin->headers[i].value));
+			strcat_s(head, 1024, temp);
+		}
+		strcat_s(head, 1024, "\r\n");
+		send(client->client, head, strlen(head), 0);
+		send(client->client, orgin->data.data, size_num, 0);
+	}
+	return orgin->code;
 }
 
 char* GetStatusCode(STATUSCODE code) {
@@ -452,3 +617,4 @@ int JudgeType(char* path) {
 		return 6;
 	return 0;
 }
+

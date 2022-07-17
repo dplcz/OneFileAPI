@@ -29,7 +29,10 @@ Response* createResponse(RESPONSETYPE type, char* data,STATUSCODE code) {
 	//response.headers = (Header*)malloc(sizeof(Header));
 	response->type = type;
 	response->headers_len = 0;
-	response->data.if_file = 1;
+	if (type == TEXT)
+		response->data.if_file = 0;
+	else
+		response->data.if_file = 1;
 	response->data.data = data;
 	response->code = code;
 	addHeaders(response, "Server", "DPweb");

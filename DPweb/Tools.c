@@ -10,3 +10,4 @@ int merror(int redata, int error, char* showTips) {
 	}
 	return 1;
 }
+

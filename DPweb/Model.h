@@ -8,7 +8,6 @@
 #include<mysql/mysql.h>
 #define ERROR -1
 #define OK 1
-
 //导入MySQL包
 #pragma comment(lib,"libmysql")
 //导入Socket包----------------
@@ -29,7 +28,7 @@ typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in claddr;
 
 //请求方式
-typedef enum { GET = 1000, POST = 2000, HEAD = 3000 }METHODTYPE;
+typedef enum { GET = 1000, POST = 1100, HEAD = 1200 }METHODTYPE;
 //响应方式
 typedef enum { TEXT = 0, HTML = 10, XML = 20, JS = 30, JSON = 40, CSS = 50,  JPG = 60, JPEG = 60, JPE = 60, JFIF = 60, PNG = 70 }RESPONSETYPE;
 //响应状态码
@@ -95,6 +94,18 @@ typedef struct MainHeader {
 	char* version;
 }MainHeader;
 
+typedef struct Data {
+	char* name;
+	char* filename;
+	char* type;
+	char data[50 * 1024];
+}Data;
+
+typedef struct PostData {
+	char* boundary;
+	Data* data;
+	int length;
+}PostData;
 
 typedef struct Request {
 	MainHeader head;
@@ -102,6 +113,7 @@ typedef struct Request {
 	int headers_len;
 	PARAMS *params;
 	int param_len;
+	PostData post_data;
 }RequestText;
 
 typedef struct ResData {
