@@ -375,6 +375,7 @@ int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, ch
 					} while (temp_head != NULL);
 				}
 			}
+			
 		}
 		res = (Response*)client->method.methods[methodIndex].callback(text->params, text->post_data);
 	}
@@ -447,7 +448,8 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			{
 				size_num = ftell(p_file);
 				char size_str[10];
-				_itoa_s(size_num, size_str, 10, 10);
+				//_itoa_s(size_num, size_str, 10, 10);
+				sprintf_s(size_str, 10, "%d", size_num);
 				strcat_s(head, 1024, size_str);
 				strcat_s(head, 1024, "\r\n");
 				rewind(p_file);
@@ -493,7 +495,8 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			{
 				size_num = ftell(p_file);
 				char size_str[10];
-				_itoa_s(size_num, size_str, 10, 10);
+				//_itoa_s(size_num, size_str, 10, 10);
+				sprintf_s(size_str, 10, "%d", size_num);
 				strcat_s(head, 1024, size_str);
 				strcat_s(head, 1024, "\r\n");
 				if (orgin->type == JPEG)
@@ -541,7 +544,8 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 		strcat_s(head, 1024, "Content-Length: ");
 		int size_num = strlen(orgin->data.data);
 		char size_str[10];
-		_itoa_s(size_num, size_str, 10, 10);
+		//_itoa_s(size_num, size_str, 10, 10);
+		sprintf_s(size_str, 10, "%d", size_num);
 		strcat_s(head, 1024, size_str);
 		strcat_s(head, 1024, "\r\n");
 		for (int i = 0; i < orgin->headers_len; i++)
