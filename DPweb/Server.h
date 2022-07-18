@@ -21,9 +21,3 @@ int GetMethodSolve(ClientSolver* client, RequestText* text, int methodIndex);
 int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, char* postData);
 //发送响应报文
 int SolveResponse(Response* orgin, ClientSolver* client);
-//获取状态码字符串
-char* GetStatusCode(STATUSCODE code);
-//拼接响应头的键值
-char* GetHeader(char* key, char* value);
-//判断文件类型
-int JudgeType(char* path);
