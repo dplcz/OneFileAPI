@@ -11,18 +11,23 @@ void* test(PARAMS *params) {
 }
 
 void* postSolve(PARAMS* params, PostData* data) {
-	Response* response = createResponse(TEXT, "dplcz666", SUCCESS);
-	FILE* p_file;
-	errno_t err = fopen_s(&p_file, data->data[0].filename, "w+");
-	if (err != 0)
-	{
-		perror("Error:");
-		return response;
-	}
-	fwrite(data->data[0].data, strlen(data->data[0].data), 1, p_file);
-	fclose(p_file);
-	printf("\n%s上传成功", data->data[0].filename);
-	return response;
+	for (int i = 0; i < data->length; i++)
+		if (strcmp(data->data[i].filename, "") != 0) {
+
+			Response* response = createResponse(TEXT, "dplcz666", SUCCESS);
+			FILE* p_file;
+			errno_t err = fopen_s(&p_file, data->data[i].filename, "w+");
+			if (err != 0)
+			{
+				perror("Error:");
+				return response;
+			}
+			fwrite(data->data[i].data, strlen(data->data[i].data), 1, p_file);
+			fclose(p_file);
+			printf("\n%s上传成功", data->data[i].filename);
+			return response;
+		}
+	return createResponse(TEXT, "FAILED", BADREQUEST);
 }
 
 void main() {

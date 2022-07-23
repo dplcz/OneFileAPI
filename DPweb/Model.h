@@ -95,9 +95,9 @@ typedef struct MainHeader {
 }MainHeader;
 
 typedef struct Data {
-	char* name;
-	char* filename;
-	char* type;
+	char name[20];
+	char filename[50];
+	char type[50];
 	char data[50 * 1024];
 }Data;
 

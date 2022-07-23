@@ -319,8 +319,9 @@ int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, ch
 			{
 				if (temp == NULL) 
 				{
-					char* temp_head = strtok_s(data, "\r\n", &temp);
+					char* temp_head = NULL;
 					do {
+						temp_head = strtok_s(data, "\r\n", &temp);
 						char* key = NULL;
 						char* key_temp = NULL;
 						char* value = NULL;
@@ -343,40 +344,54 @@ int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, ch
 								exit(-1);
 							}
 						}
-						text->post_data.data[text->post_data.length].filename = NULL;
-						text->post_data.data[text->post_data.length].name = NULL;
-						text->post_data.data[text->post_data.length].type = NULL;
+						strcpy_s(text->post_data.data[text->post_data.length].filename, 50, "");
+						//text->post_data.data[text->post_data.length].type = NULL;
 						while (strcmp("", value) != 0)
 						{
 							key_temp = strtok_s(NULL, "; ", &value);
 							value_temp = strtok_s(NULL, "=", &key_temp);
 							if (strcmp(key_temp, "") == 0)
-								text->post_data.data[text->post_data.length].type = value_temp;
+								strcpy_s(text->post_data.data[text->post_data.length].type, 50, value_temp);
 							else
 							{
 								if (strcmp("name", value_temp) == 0)
 								{
 									char tmp[20];
 									sscanf_s(key_temp, "\"%[^\"]", tmp, 20);
-									text->post_data.data[text->post_data.length].name = tmp;
+									strcpy_s(text->post_data.data[text->post_data.length].name, 20, tmp);
 								}
 								else if (strcmp("filename", value_temp) == 0)
 								{
-									char tmp[20];
-									sscanf_s(key_temp, "\"%[^\"]", tmp, 20);
-									text->post_data.data[text->post_data.length].filename = tmp;
+									char tmp[50];
+									sscanf_s(key_temp, "\"%[^\"]", tmp, 50);
+									strcpy_s(text->post_data.data[text->post_data.length].filename, 50, tmp);
 								}
 							}
 						}
 						rsize_t size = 50 * 1024;
-						strcpy_s(text->post_data.data[text->post_data.length].data, size, main_data);
-						text->post_data.length++;
-						break;
+						char rule_str[200]="";
+						sprintf_s(rule_str, 200, "%s%s", "%s", text->post_data.boundary);	
+						sscanf_s(main_data, rule_str, text->post_data.data[text->post_data.length].data, strlen(text->post_data.boundary));
+						char* str_str_temp = strstr(main_data, "\r\n\r\n");
+						if (str_str_temp != NULL) {
+							int start_pos = strlen(text->post_data.data[text->post_data.length].data) + strlen(text->post_data.boundary) + 4;
+							memcpy(temp_head, &main_data[start_pos], strlen(main_data));
+							strcpy_s(main_data, size, str_str_temp);
+							memcpy(main_data, &main_data[4], strlen(main_data));
+							text->post_data.length++;
+						}
+						else {
+							text->post_data.length++;
+							break;
+						}
 					} while (temp_head != NULL);
 				}
 			}
 			
 		}
+		//for (int i = 0; i < text->post_data.length; i++) {
+		//	printf("name: %s data: %s\n", text->post_data.data[i].name, text->post_data.data[i].data);
+		//}
 		res = (Response*)client->method.methods[methodIndex].callback(text->params, text->post_data);
 	}
 	int sendTemp = SolveResponse(res, client);
