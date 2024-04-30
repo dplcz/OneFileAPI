@@ -4,13 +4,13 @@
 //创建一个socket
 APP* CreateServerIPV4(ULONG host, int port);
 //启动服务
-Status RunServer(APP *app);
+Status RunServer(APP *app, int pool_flag);
 //监听服务端指令
 void* ServerControl(SERVER *server);
 //监听客户端请求
-void* ClientControl(APP *app);
+void* ClientControl(ClientControlArgs clientArgs);
 //处理客户端报文
-void* SolveClient(ClientSolver* client);
+void* SolveClient(ClientSolver* client, int threadId);
 //判断参数类型是否匹配
 int JudgeParam(Method method, RequestText* text);
 //处理静态文件请求
@@ -21,3 +21,5 @@ int GetMethodSolve(ClientSolver* client, RequestText* text, int methodIndex);
 int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, char* postData);
 //发送响应报文
 int SolveResponse(Response* orgin, ClientSolver* client);
+//线程池监听任务
+void ThreadListen(ThreadArgs args);

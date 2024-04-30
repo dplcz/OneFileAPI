@@ -5,9 +5,12 @@
 #include<WinSock2.h>
 #include<WS2tcpip.h>
 #include<pthread.h>
+#include<semaphore.h>
 #include<mysql/mysql.h>
 #define ERROR -1
 #define OK 1
+#define CONSUMER 1
+#define PRODUCER 2
 //导入MySQL包
 #pragma comment(lib,"libmysql")
 //导入Socket包----------------
@@ -16,10 +19,15 @@
 #pragma comment(lib,"pthreadVC2.lib")
 
 //定义最大连接队列
-#define MAX_CONNECTION_QUEUE 8
+#define MAX_CONNECTION_QUEUE 128
 
 //定义最大接口数
 #define MAX_API_COUNT 10
+//定义线程池大小
+#define MAX_THREAD_COUNT 24
+//定义单个线程最大任务数量
+#define MAX_TASK_COUNT 5000
+
 
 //定义状态
 typedef int Status;
@@ -76,12 +84,53 @@ typedef struct ClientSolver {
 	RequestMethod method;
 }ClientSolver;
 
+
+typedef struct ThreadLock {
+	pthread_mutex_t lock;
+	int flag;
+}ThreadLock;
+//任务队列
+typedef struct TaskQueue {
+	ClientSolver* taskQueue[MAX_TASK_COUNT + 1];
+	int head;
+	int tail;
+}TaskQueue;
+//线程
+typedef struct Thread{
+	pthread_t thread;
+	TaskQueue task;
+}Thread;
+
+//线程池
+typedef struct ThreadPool{
+	pthread_t pool[MAX_THREAD_COUNT];
+	TaskQueue task;
+	ThreadLock lock;
+	pthread_cond_t cond;
+	sem_t sem_items;
+	sem_t sem_blanks;
+	sem_t mutex;
+}ThreadPool;
+
 typedef struct app {
 	SERVER* serverM;
 	claddr client;
 	int cllen;
 	RequestMethod requestM;
 }APP;
+
+//线程池参数
+typedef struct ThreadArgs {
+	APP* app;
+	ThreadPool* pool;
+	int threadId;
+}ThreadArgs;
+
+//ClientControl线程参数
+typedef struct ClientControlArgs {
+	APP* app;
+	int pool_flag;
+}ClientControlArgs;
 
 typedef struct Header {
 	char* key;
@@ -117,7 +166,7 @@ typedef struct Request {
 }RequestText;
 
 typedef struct ResData {
-	int if_file;
+	int is_file;
 	char* data;
 }ResData;
 

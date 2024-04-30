@@ -3,6 +3,7 @@
 #include "Tools.h"
 
 
+
 APP* CreateServerIPV4(ULONG host, int port) {
 	/// <summary>
 	/// 默认配置
@@ -24,7 +25,7 @@ APP* CreateServerIPV4(ULONG host, int port) {
 	merror(isok, WSAEINVAL, "socket请求失败\n");
 	// 默认配置
 	// IPV4 TCP 流传输
-	SOCKET server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
 	merror(server, INVALID_SOCKET, "socket创建失败\n");
 	// IPV4
 	seraddr.sin_family = AF_INET;
@@ -48,10 +49,13 @@ APP* CreateServerIPV4(ULONG host, int port) {
 	return app;
 }
 
-Status RunServer(APP *app) {
+Status RunServer(APP *app, int pool_flag) {
 	pthread_t th_server,th_client;
+	ClientControlArgs args;
+	args.app = app;
+	args.pool_flag = pool_flag;
 	pthread_create(&th_server, NULL, ServerControl, app->serverM);
-	pthread_create(&th_client, NULL, ClientControl, app);
+	pthread_create(&th_client, NULL, ClientControl, &args);
 	while (1);
 
 }
@@ -68,14 +72,43 @@ void* ServerControl(SERVER* serverM) {
 	}
 }
 
-void* ClientControl(APP* app) {
+void ThreadListen(ThreadArgs args) {
+	ClientSolver* curTask;
+	while (1) {
+		if (args.app->serverM->flag == 0)
+			break;
+		else {
+			curTask = GetTask(args.pool, 1);
+			if (curTask == NULL)
+				continue;
+			//printf("\n%d", args.threadId);
+			SolveClient(curTask, args.threadId);
+
+		}
+	}
+}
+
+void* ClientControl(ClientControlArgs clientArgs) {
+	ThreadPool pool;
+	//Thread *curThread;
+	ThreadArgs args[MAX_THREAD_COUNT];
+	
+	if (clientArgs.pool_flag) {
+		InitThreadPool(&pool);
+		for (int i = 0; i < MAX_THREAD_COUNT; i++) {
+			args[i].app = clientArgs.app;
+			args[i].pool = &pool;
+			args[i].threadId = i;
+			pthread_create(&pool.pool[i], NULL, ThreadListen, &args[i]);
+		}
+	}
 	while (1) {
 		//printf("等待连接中...");
-		SOCKET client = accept(app->serverM->server, (sockaddr*)&app->client, &app->cllen);
-		if (app->serverM->flag == 0) {
+		SOCKET client = accept(clientArgs.app->serverM->server, (sockaddr*)&clientArgs.app->client, &clientArgs.app->cllen);
+		if (clientArgs.app->serverM->flag == 0) {
 			closesocket(client);
-			free(app->serverM);
-			free(app);
+			free(clientArgs.app->serverM);
+			free(clientArgs.app);
 			exit(0);
 		}
 		//参数一：表示谁接受连接
@@ -86,18 +119,34 @@ void* ClientControl(APP* app) {
 		//printf("连接成功\n");
 		ClientSolver* temp = (ClientSolver*)malloc(sizeof(ClientSolver));
 		temp->client = client;
-		temp->method = app->requestM;
-		pthread_t th;
-		pthread_create(&th, NULL, SolveClient, temp);
+		temp->method = clientArgs.app->requestM;
+		if (clientArgs.pool_flag) {
+			/*curThread = GetThread(&pool);*/
+			if (PutTask(&pool, temp, 1)){
+				continue;
+			}
+			else {
+				free(temp);
+			}
+		}
+		else {
+			pthread_t th;
+			pthread_create(&th, NULL, SolveClient, temp);
+		}
 	}
 }
 
-void* SolveClient(ClientSolver* client) {
+void* SolveClient(ClientSolver* client,int threadId) {
 	//是否处理成功
-	int flag = 0;
+	int flag = 404;
+	int socket_flag;
 	char recvdata[50 * 1024] = "";
 	//接收数据，默认为空
-	recv(client->client, recvdata, sizeof(recvdata), 0);	
+	int clientStatus = recv(client->client, recvdata, sizeof(recvdata), 0);
+	if (clientStatus <= 0) {
+		/*free(client);*/
+		return;
+}
 	//参数一：接收消息的来源
 	//参数二：接收消息的指针
 	//参数三：接收消息的指针的内存大小
@@ -178,7 +227,8 @@ void* SolveClient(ClientSolver* client) {
 		text.headers[text.headers_len].value = value;
 		if (strcmp(value, "") == 0) 
 		{
-			text.post_data.boundary = header;
+			if(strcmp(text.head.method, "POST") == 0)
+				text.post_data.boundary = header;
 			break;
 		}
 		else if (strcmp(header, "Content-Length") == 0)
@@ -221,7 +271,7 @@ void* SolveClient(ClientSolver* client) {
 		time_t time_seconds = time(0);
 		struct tm ptm;
 		localtime_s(&ptm, &time_seconds);
-		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  GET  \"%s  %s\" - %d", ptm.tm_year + 1900, ptm.tm_mon + 1,
+		printf("\nTh-%d\t[%02d-%02d-%02d %02d:%02d:%02d]  GET  \"%s  %s\" - %d", threadId, ptm.tm_year + 1900, ptm.tm_mon + 1,
 			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version, flag);
 	}
 	else if (strcmp(text.head.method, "POST") == 0) {
@@ -238,21 +288,21 @@ void* SolveClient(ClientSolver* client) {
 		time_t time_seconds = time(0);
 		struct tm ptm;
 		localtime_s(&ptm, &time_seconds);
-		printf("\n[%02d-%02d-%02d %02d:%02d:%02d]  POST \"%s  %s\" - %d", ptm.tm_year + 1900, ptm.tm_mon + 1,
+		printf("\nTh-%d\t[%02d-%02d-%02d %02d:%02d:%02d]  POST \"%s  %s\" - %d", threadId, ptm.tm_year + 1900, ptm.tm_mon + 1,
 			ptm.tm_mday, ptm.tm_hour, ptm.tm_min, ptm.tm_sec, text.head.url, text.head.version, flag);
 		
 	}
 	char dont_allow[] = "HTTP/1.1 404 Not Found\r\n\r\nMethod Don't Allow";
-	if (!flag)
+	if (flag>=400)
 	{
 		send(client->client, dont_allow, strlen(dont_allow), 0);
 	}
-	closesocket(client->client);
+	socket_flag = closesocket(client->client);
 	if (text.param_len > 0)
 		free(text.params);
 	if (text.headers_len > 0)
 		free(text.headers);
-	if (flag && text.post_data.length > 0)
+	if (flag < 400 && text.post_data.length > 0 && strcmp(text.head.method, "POST") == 0)
 		free(text.post_data.data);
 	free(client);
 }
@@ -276,7 +326,7 @@ int GetMethodSolve(ClientSolver* client, RequestText* text,int methodIndex) {
 	int sendTemp = SolveResponse(res, client);
 	free(res->headers);
 	free(res);
-	return 1;
+	return sendTemp;
 }
 
 int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, char* postData) {
@@ -422,7 +472,7 @@ int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, cha
 	res->headers[0].key = "Server";
 	res->headers[0].value = "DPweb";
 	res->headers_len = 1;
-	res->data.if_file = 1;
+	res->data.is_file = 1;
 	res->data.data = path;
 	int sendTemp = SolveResponse(res, client);
 	free(res->headers);
@@ -431,7 +481,7 @@ int GetStaticSolve(ClientSolver* client, RequestText* text, int methodIndex, cha
 }
 
 int SolveResponse(Response* orgin, ClientSolver* client) {
-	if (orgin->data.if_file) {
+	if (orgin->data.is_file) {
 		if (orgin->type < JPEG) {
 			FILE* p_file;
 			errno_t err = fopen_s(&p_file, orgin->data.data, "rb");
@@ -451,13 +501,13 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 
 			strcat_s(head, 1024, temp_code);
 			if(orgin->type==HTML)
-				strcat_s(head, 1024, "Content-Type: text/html;charset=utf-8\r\n");
+				strcat_s(head, 1024, "Content-Type: text/html; charset=utf-8\r\n");
 			else if(orgin->type == JS)
-				strcat_s(head, 1024, "Content-Type: application/javascript;charset=utf-8\r\n");
+				strcat_s(head, 1024, "Content-Type: application/javascript; charset=utf-8\r\n");
 			else if (orgin->type == CSS)
-				strcat_s(head, 1024, "Content-Type: text/css;charset=utf-8\r\n");
+				strcat_s(head, 1024, "Content-Type: text/css; charset=utf-8\r\n");
 			else if (orgin->type == XML)
-				strcat_s(head, 1024, "Content-Type: text/xml;charset=utf-8\r\n");
+				strcat_s(head, 1024, "Content-Type: text/xml; charset=utf-8\r\n");
 			strcat_s(head, 1024, "Content-Length: ");
 			if (fseek(p_file, 0, SEEK_END) == 0) 
 			{
@@ -478,11 +528,15 @@ int SolveResponse(Response* orgin, ClientSolver* client) {
 			strcat_s(head, 1024, "\r\n");
 			/*printf("%s", head);*/
 			send(client->client, head, strlen(head), 0);
-			char* tempdata = (char*)malloc(sizeof(char) * 1024);
+			char* tempdata = (char*)malloc(sizeof(char) * 1024 * 10);
+			int temp;
+			size_t bytes_read;
 			do
 			{
-				fgets(tempdata, 1024, p_file);
-				send(client->client, tempdata, strlen(tempdata), 0);
+				bytes_read = fread(tempdata, sizeof(char), 1024 * 10, p_file);
+				//fgets(tempdata, 1024, p_file);
+				if (bytes_read > 0)
+					temp = send(client->client, tempdata, bytes_read, 0);
 			} while (!feof(p_file));
 			fclose(p_file);
 			free(tempdata);

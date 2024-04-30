@@ -10,6 +10,14 @@ void* test(PARAMS *params) {
 	return response;
 }
 
+void* test2(PARAMS* params) {
+	Response* response = createResponse(TEXT, "123456789", SUCCESS);
+	Sleep(1000);
+	addHeaders(response, "dp", "123");
+	addHeaders(response, "lcz", "666");
+	return response;
+}
+
 void* postSolve(PARAMS* params, PostData* data) {
 	for (int i = 0; i < data->length; i++)
 		if (strcmp(data->data[i].filename, "") != 0) {
@@ -33,7 +41,8 @@ void* postSolve(PARAMS* params, PostData* data) {
 void main() {
 	APP* app = CreateServerIPV4(INADDR_ANY, 8000);
 	addMethod(app, GET, "/index", test, NULL, 0);
+	addMethod(app, GET, "/test", test2, NULL, 0);
 	addMethod(app, POST, "/upload", postSolve, NULL, 0);
-	addStaticFile(app, "/base", "E:/c_code/DPweb/static");
-	Status status = RunServer(app);
+	addStaticFile(app, "/base", "D:/vs_project/DPweb/DPweb/layuimini-v2");
+	Status status = RunServer(app, 1);
 }
