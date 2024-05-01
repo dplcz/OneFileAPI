@@ -24,6 +24,7 @@
     <ProjectGuid>{8d7313fe-d02e-4159-8551-3b4eef414451}</ProjectGuid>
     <RootNamespace>DPweb</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>OneFileAPI</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

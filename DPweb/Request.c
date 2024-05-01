@@ -92,7 +92,7 @@ Status addHeaders(Response *origin, char* key, char* value) {
 		{
 			free(origin->headers);
 			printf("Ìí¼ÓÍ·Ê§°Ü");
-			return ERROR;
+			return MERROR;
 		}
 	}
 }		

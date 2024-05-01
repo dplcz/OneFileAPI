@@ -8,7 +8,7 @@ int merror(int redata, int error, char* showTips) {
 		perror(showTips);
 		printf("\n");
 		getchar();
-		exit(ERROR);
+		exit(MERROR);
 	}
 	return 1;
 }
@@ -84,8 +84,8 @@ ClientSolver* GetTask(ThreadPool* pool, int block) {
 			if (taskLength == 0) {
 				/*if (ReleaseThreadLock(&pool->lock, CONSUMER))
 					printf("\n1 ÊÍ·ÅËø");*/
-				sem_wait(&pool->sem_items);
-				sem_wait(&pool->mutex);
+				sem_wait(&pool->_sem_items);
+				sem_wait(&pool->_mutex);
 				//pthread_cond_wait(&pool->cond, &pool->lock);
 				//if (GetThreadLock(&pool->lock, CONSUMER))
 				//	printf("");
@@ -94,8 +94,8 @@ ClientSolver* GetTask(ThreadPool* pool, int block) {
 				//sem_post(&queue->sem_out);
 				//if (ReleaseThreadLock(&pool->lock, CONSUMER))
 				//	printf("");
-				sem_post(&pool->mutex);
-				sem_post(&pool->sem_blanks);
+				sem_post(&pool->_mutex);
+				sem_post(&pool->_sem_blanks);
 				return temp;
 				//pthread_cond_wait(&queue->cond, &queue->lock);
 				//printf("\nÊÍ·ÅËø");
@@ -106,14 +106,14 @@ ClientSolver* GetTask(ThreadPool* pool, int block) {
 				//if (GetThreadLock(&pool->lock, CONSUMER))
 				//	printf("");
 				//pthread_mutex_lock(&queue->lock_out);
-				sem_wait(&pool->sem_items);
-				sem_wait(&pool->mutex);
+				sem_wait(&pool->_sem_items);
+				sem_wait(&pool->_mutex);
 				temp = pool->task.taskQueue[pool->task.head];
 				pool->task.head = (pool->task.head + 1) % TASK_QUEUE_SIZE;
 				//if (ReleaseThreadLock(&pool->lock, CONSUMER))
 				//	printf("");
-				sem_post(&pool->mutex);
-				sem_post(&pool->sem_blanks);
+				sem_post(&pool->_mutex);
+				sem_post(&pool->_sem_blanks);
 				//pthread_mutex_unlock(&queue->lock_out);
 				return temp;
 			}
@@ -137,26 +137,26 @@ int PutTask(ThreadPool* pool, ClientSolver* task, int block) {
 		int taskLength = TaskLength(&pool->task);
 		while (1) {
 			if (taskLength == MAX_TASK_COUNT) {
-				sem_wait(&pool->sem_blanks);
-				sem_wait(&pool->mutex);
+				sem_wait(&pool->_sem_blanks);
+				sem_wait(&pool->_mutex);
 				
 				pool->task.taskQueue[pool->task.tail] = task;
 				pool->task.tail = (pool->task.tail + 1) % TASK_QUEUE_SIZE;
 
-				sem_post(&pool->mutex);
-				sem_post(&pool->sem_items);
+				sem_post(&pool->_mutex);
+				sem_post(&pool->_sem_items);
 				return 1;
 			}
 			else
 			{
-				sem_wait(&pool->sem_blanks);
-				sem_wait(&pool->mutex);
+				sem_wait(&pool->_sem_blanks);
+				sem_wait(&pool->_mutex);
 
 				pool->task.taskQueue[pool->task.tail] = task;
 				pool->task.tail = (pool->task.tail + 1) % TASK_QUEUE_SIZE;
 
-				sem_post(&pool->mutex);
-				sem_post(&pool->sem_items);
+				sem_post(&pool->_mutex);
+				sem_post(&pool->_sem_items);
 				return 1;
 			}
 		}
@@ -189,19 +189,22 @@ int TaskLength(TaskQueue* queue) {
 }
 
 
-void InitThread(TaskQueue* queue) {
-	queue->head = 0;
-	queue->tail = 0;
+void InitThread(Thread* thread,int threadId) {
+	thread->_taskCount = 0;
+	thread->_threadId = threadId;
 }
 
 void InitThreadPool(ThreadPool* pool) {
-	pool->lock.lock = PTHREAD_MUTEX_INITIALIZER;
-	pool->lock.flag = PTHREAD_MUTEX_INITIALIZER;
-	pool->cond = PTHREAD_COND_INITIALIZER;
-	sem_init(&pool->sem_items, 0, 0);
-	sem_init(&pool->sem_blanks, 0, MAX_TASK_COUNT);
-	sem_init(&pool->mutex, 0, 1);
-	InitThread(&pool->task);
+	pool->_lock.lock = PTHREAD_MUTEX_INITIALIZER;
+	pool->_lock.flag = 0;
+	pool->_cond = PTHREAD_COND_INITIALIZER;
+	sem_init(&pool->_sem_items, 0, 0);
+	sem_init(&pool->_sem_blanks, 0, MAX_TASK_COUNT);
+	sem_init(&pool->_mutex, 0, 1);
+	pool->task.head = 0;
+	pool->task.tail = 0;
+	for (int i = 0; i < MAX_THREAD_COUNT; i++)
+		InitThread(&pool->pool[i], i);
 }
 
 int GetThreadLock(ThreadLock* lock, int USER) {
@@ -229,4 +232,11 @@ int ReleaseThreadLock(ThreadLock* lock, int USER) {
 		return 1;
 	}
 	return 0;
+}
+
+void ShowThreadStatus(ThreadPool pool) {
+	printf("\nNAME\t\tCOUNT");
+	for (int i = 0; i < MAX_THREAD_COUNT; i++) {
+		printf("\nTh-%d\t\t%d", pool.pool[i]._threadId, pool.pool[i]._taskCount);
+	}
 }

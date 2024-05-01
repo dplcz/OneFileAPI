@@ -6,7 +6,7 @@ APP* CreateServerIPV4(ULONG host, int port);
 //启动服务
 Status RunServer(APP *app, int pool_flag);
 //监听服务端指令
-void* ServerControl(SERVER *server);
+void* ServerControl(APP* app);
 //监听客户端请求
 void* ClientControl(ClientControlArgs clientArgs);
 //处理客户端报文

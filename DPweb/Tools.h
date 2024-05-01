@@ -22,9 +22,11 @@ Thread* GetThread(ThreadPool* pool);
 int TaskLength(TaskQueue* queue);
 //初始化线程池
 void InitThreadPool(ThreadPool* pool);
-//初始化线程池
-void InitThread(TaskQueue* queue);
+//初始化线程
+void InitThread(Thread* thread, int threadId);
 //线程加锁
 int GetThreadLock(ThreadLock* lock, int block);
 //线程解锁
 int ReleaseThreadLock(ThreadLock* lock, int USER);
+//显示线程状态
+void ShowThreadStatus(ThreadPool pool);

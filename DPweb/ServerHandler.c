@@ -46,6 +46,7 @@ APP* CreateServerIPV4(ULONG host, int port) {
 	app->serverM->flag = 1;
 	app->cllen = sizeof(app->client);
 	app->requestM.method_len = 0;
+	app->pool = NULL;
 	return app;
 }
 
@@ -54,20 +55,24 @@ Status RunServer(APP *app, int pool_flag) {
 	ClientControlArgs args;
 	args.app = app;
 	args.pool_flag = pool_flag;
-	pthread_create(&th_server, NULL, ServerControl, app->serverM);
+	pthread_create(&th_server, NULL, ServerControl, app);
 	pthread_create(&th_client, NULL, ClientControl, &args);
 	while (1);
 
 }
 
-void* ServerControl(SERVER* serverM) {
+void* ServerControl(APP* app) {
 	while (1) {
 		char temp[20];
 		scanf_s("%s",temp,20);
 		if (strcmp(temp, "stop") == 0 || strcmp(temp, "STOP") == 0)
 		{
-			closesocket(serverM->server);
-			serverM->flag = 0;
+			closesocket(app->serverM->server);
+			app->serverM->flag = 0;
+		}
+		else if (strcmp(temp, "show") == 0 || strcmp(temp, "SHOW") == 0) 
+		{
+			ShowThreadStatus(*app->pool);
 		}
 	}
 }
@@ -82,8 +87,8 @@ void ThreadListen(ThreadArgs args) {
 			if (curTask == NULL)
 				continue;
 			//printf("\n%d", args.threadId);
-			SolveClient(curTask, args.threadId);
-
+			SolveClient(curTask, args.thisThread->_threadId);
+			args.thisThread->_taskCount++;
 		}
 	}
 }
@@ -98,9 +103,10 @@ void* ClientControl(ClientControlArgs clientArgs) {
 		for (int i = 0; i < MAX_THREAD_COUNT; i++) {
 			args[i].app = clientArgs.app;
 			args[i].pool = &pool;
-			args[i].threadId = i;
-			pthread_create(&pool.pool[i], NULL, ThreadListen, &args[i]);
+			args[i].thisThread = &pool.pool[i]._thread;
+			pthread_create(&pool.pool[i]._thread, NULL, ThreadListen, &args[i]);
 		}
+		clientArgs.app->pool = &pool;
 	}
 	while (1) {
 		//printf("等待连接中...");
@@ -305,6 +311,7 @@ void* SolveClient(ClientSolver* client,int threadId) {
 	if (flag < 400 && text.post_data.length > 0 && strcmp(text.head.method, "POST") == 0)
 		free(text.post_data.data);
 	free(client);
+	return;
 }
 
 int JudgeParam(Method method, RequestText* text) {

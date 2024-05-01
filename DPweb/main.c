@@ -12,7 +12,7 @@ void* test(PARAMS *params) {
 
 void* test2(PARAMS* params) {
 	Response* response = createResponse(TEXT, "123456789", SUCCESS);
-	Sleep(1000);
+	Sleep(100);
 	addHeaders(response, "dp", "123");
 	addHeaders(response, "lcz", "666");
 	return response;
@@ -43,6 +43,6 @@ void main() {
 	addMethod(app, GET, "/index", test, NULL, 0);
 	addMethod(app, GET, "/test", test2, NULL, 0);
 	addMethod(app, POST, "/upload", postSolve, NULL, 0);
-	addStaticFile(app, "/base", "D:/vs_project/DPweb/DPweb/layuimini-v2");
+	addStaticFile(app, "/base", "D:/vs_project/layuimini-v2");
 	Status status = RunServer(app, 1);
 }

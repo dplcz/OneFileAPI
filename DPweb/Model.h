@@ -7,7 +7,7 @@
 #include<pthread.h>
 #include<semaphore.h>
 #include<mysql/mysql.h>
-#define ERROR -1
+#define MERROR -1
 #define OK 1
 #define CONSUMER 1
 #define PRODUCER 2
@@ -24,8 +24,8 @@
 //定义最大接口数
 #define MAX_API_COUNT 10
 //定义线程池大小
-#define MAX_THREAD_COUNT 24
-//定义单个线程最大任务数量
+#define MAX_THREAD_COUNT 96
+//定义队列最大任务数量
 #define MAX_TASK_COUNT 5000
 
 
@@ -97,19 +97,20 @@ typedef struct TaskQueue {
 }TaskQueue;
 //线程
 typedef struct Thread{
-	pthread_t thread;
-	TaskQueue task;
+	pthread_t _thread;
+	int _taskCount;
+	int _threadId;
 }Thread;
 
 //线程池
 typedef struct ThreadPool{
-	pthread_t pool[MAX_THREAD_COUNT];
+	Thread pool[MAX_THREAD_COUNT];
 	TaskQueue task;
-	ThreadLock lock;
-	pthread_cond_t cond;
-	sem_t sem_items;
-	sem_t sem_blanks;
-	sem_t mutex;
+	ThreadLock _lock;
+	pthread_cond_t _cond;
+	sem_t _sem_items;
+	sem_t _sem_blanks;
+	sem_t _mutex;
 }ThreadPool;
 
 typedef struct app {
@@ -117,13 +118,14 @@ typedef struct app {
 	claddr client;
 	int cllen;
 	RequestMethod requestM;
+	ThreadPool* pool;
 }APP;
 
 //线程池参数
 typedef struct ThreadArgs {
 	APP* app;
 	ThreadPool* pool;
-	int threadId;
+	Thread* thisThread;
 }ThreadArgs;
 
 //ClientControl线程参数
