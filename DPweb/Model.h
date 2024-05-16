@@ -2,21 +2,41 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
+
+//#define DEV 0
+
+#if defined(_WIN32) && defined(DEV)
+//导入Socket包----------------
 #include<WinSock2.h>
 #include<WS2tcpip.h>
+#pragma comment(lib,"ws2_32.lib")
+#include<Windows.h>
+
+typedef HANDLE MyThread, Sem;
+
+//#elif defined(__linux__)
+#else
+//导入Socket包----------------
+#include<WinSock2.h>
+#include<WS2tcpip.h>
+#pragma comment(lib,"ws2_32.lib")
+
+//导入多线程包
 #include<pthread.h>
 #include<semaphore.h>
-#include<mysql/mysql.h>
+#pragma comment(lib,"pthreadVC2.lib")
+typedef pthread_t MyThread;
+typedef sem_t Sem;
+#endif
+
+//#include<semaphore.h>
+//#include<mysql/mysql.h>
 #define MERROR -1
 #define OK 1
 #define CONSUMER 1
 #define PRODUCER 2
 //导入MySQL包
-#pragma comment(lib,"libmysql")
-//导入Socket包----------------
-#pragma comment(lib,"ws2_32.lib")
-//导入多线程包
-#pragma comment(lib,"pthreadVC2.lib")
+//#pragma comment(lib,"libmysql")
 
 //定义最大连接队列
 #define MAX_CONNECTION_QUEUE 128
@@ -28,6 +48,8 @@
 //定义队列最大任务数量
 #define MAX_TASK_COUNT 5000
 
+//定义回调函数
+typedef void* (*thread_func_t)(void*);
 
 //定义状态
 typedef int Status;
@@ -85,10 +107,10 @@ typedef struct ClientSolver {
 }ClientSolver;
 
 
-typedef struct ThreadLock {
-	pthread_mutex_t lock;
-	int flag;
-}ThreadLock;
+//typedef struct ThreadLock {
+//	pthread_mutex_t lock;
+//	int flag;
+//}ThreadLock;
 //任务队列
 typedef struct TaskQueue {
 	ClientSolver* taskQueue[MAX_TASK_COUNT + 1];
@@ -96,36 +118,49 @@ typedef struct TaskQueue {
 	int tail;
 }TaskQueue;
 //线程
-typedef struct Thread{
-	pthread_t _thread;
+typedef struct ThreadTask{
+	MyThread _thread;
 	int _taskCount;
 	int _threadId;
-}Thread;
+}ThreadTask;
 
 //线程池
-typedef struct ThreadPool{
-	Thread pool[MAX_THREAD_COUNT];
+#if defined(_WIN32) && defined(DEV)
+typedef struct MyThreadPool {
+	PTP_POOL pool;
+	PTP_WORK_CALLBACK workcallback;
 	TaskQueue task;
-	ThreadLock _lock;
-	pthread_cond_t _cond;
+	Sem _sem_items;
+	Sem _sem_blanks;
+	Sem _mutex;
+}MyThreadPool;
+#else
+typedef struct MyThreadPool {
+	ThreadTask pool[MAX_THREAD_COUNT];
+	TaskQueue task;
+	//ThreadLock _lock;
+	//pthread_cond_t _cond;
 	sem_t _sem_items;
 	sem_t _sem_blanks;
 	sem_t _mutex;
-}ThreadPool;
+}MyThreadPool;
+#endif // 0
+
+
 
 typedef struct app {
 	SERVER* serverM;
 	claddr client;
 	int cllen;
 	RequestMethod requestM;
-	ThreadPool* pool;
+	MyThreadPool* pool;
 }APP;
 
 //线程池参数
 typedef struct ThreadArgs {
 	APP* app;
-	ThreadPool* pool;
-	Thread* thisThread;
+	MyThreadPool* pool;
+	ThreadTask* thisThread;
 }ThreadArgs;
 
 //ClientControl线程参数
@@ -133,6 +168,13 @@ typedef struct ClientControlArgs {
 	APP* app;
 	int pool_flag;
 }ClientControlArgs;
+
+//SolveClient参数
+typedef struct ClientThreadArgs {
+	ClientSolver* client; 
+	int threadId;
+	Sem limit;
+}ClientThreadArgs;
 
 typedef struct Header {
 	char* key;

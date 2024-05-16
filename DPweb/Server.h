@@ -9,6 +9,10 @@ Status RunServer(APP *app, int pool_flag);
 void* ServerControl(APP* app);
 //监听客户端请求
 void* ClientControl(ClientControlArgs clientArgs);
+#if defined(_WIN32)&&defined(DEV)
+void* PreSolveClient(PTP_CALLBACK_INSTANCE Instance, ClientThreadArgs args, PTP_WORK Work);
+#endif // defined(_WIN32)&&defined(DEV)
+
 //处理客户端报文
 void* SolveClient(ClientSolver* client, int threadId);
 //判断参数类型是否匹配
@@ -22,4 +26,4 @@ int PostMethodSolve(ClientSolver* client, RequestText* text, int methodIndex, ch
 //发送响应报文
 int SolveResponse(Response* orgin, ClientSolver* client);
 //线程池监听任务
-void ThreadListen(ThreadArgs args);
+void ThreadListen(ThreadArgs* args);

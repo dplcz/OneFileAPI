@@ -50,13 +50,24 @@ APP* CreateServerIPV4(ULONG host, int port) {
 	return app;
 }
 
+#if defined(_WIN32) && defined(DEV)
+void* PreSolveClient(PTP_CALLBACK_INSTANCE Instance, ClientThreadArgs* args, PTP_WORK Work) {
+	SolveClient(args->client, args->threadId);
+	//sem_post(&args->limit);
+	ReleaseSemaphore(args->limit, 1, NULL);
+	return;
+}
+
+#endif // defined(_WIN32) && defined(DEV)
+
 Status RunServer(APP *app, int pool_flag) {
-	pthread_t th_server,th_client;
+	MyThread th_server, th_client;
 	ClientControlArgs args;
 	args.app = app;
 	args.pool_flag = pool_flag;
-	pthread_create(&th_server, NULL, ServerControl, app);
-	pthread_create(&th_client, NULL, ClientControl, &args);
+
+	th_server = CreateMyThread(ServerControl, app);
+	th_client = CreateMyThread(ClientControl, &args);
 	while (1);
 
 }
@@ -77,36 +88,65 @@ void* ServerControl(APP* app) {
 	}
 }
 
-void ThreadListen(ThreadArgs args) {
+#if defined(_WIN32) && defined(DEV)
+void ThreadListen(PTP_CALLBACK_INSTANCE Instance, ThreadArgs* args, PTP_WORK Work) {
 	ClientSolver* curTask;
+	Sem socket_limit;
+	socket_limit = CreateSemaphore(NULL, 1, 1, NULL);
+	/*sem_init(&socket_limit, 0, 1);*/
+	ClientThreadArgs clientArgs;
+	clientArgs.threadId = NULL;
+	clientArgs.limit = socket_limit;
 	while (1) {
-		if (args.app->serverM->flag == 0)
+		if (args->app->serverM->flag == 0)
 			break;
 		else {
-			curTask = GetTask(args.pool, 1);
-			if (curTask == NULL)
+			curTask = GetTask(args->pool, 1);
+			if (curTask == NULL) {
+				printf("获取任务失败");
 				continue;
-			//printf("\n%d", args.threadId);
-			SolveClient(curTask, args.thisThread->_threadId);
-			args.thisThread->_taskCount++;
+			}
+			//sem_wait(&socket_limit);
+			WaitForSingleObject(socket_limit, INFINITE);
+			clientArgs.client = curTask;
+			
+			PTP_WORK newWork = CreateThreadpoolWork(PreSolveClient, &clientArgs, Instance);
+			if (newWork != NULL) {
+				SubmitThreadpoolWork(newWork);
+			}
+			else {
+				printf("创建线程失败");
+				continue;
+			}
 		}
 	}
 }
+#else
+void ThreadListen(ThreadArgs *args) {
+	ClientSolver* curTask;
+	while (1) {
+		if (args->app->serverM->flag == 0)
+			break;
+		else {
+			curTask = GetTask(args->pool, 1);
+			if (curTask == NULL)
+				continue;
+			//printf("\n%d", args.threadId);
+			SolveClient(curTask, args->thisThread->_threadId);
+			args->thisThread->_taskCount++;
+		}
+	}
+}
+#endif
 
 void* ClientControl(ClientControlArgs clientArgs) {
-	ThreadPool pool;
-	//Thread *curThread;
+	MyThreadPool pool;
 	ThreadArgs args[MAX_THREAD_COUNT];
+	//Thread *curThread;
 	
 	if (clientArgs.pool_flag) {
-		InitThreadPool(&pool);
-		for (int i = 0; i < MAX_THREAD_COUNT; i++) {
-			args[i].app = clientArgs.app;
-			args[i].pool = &pool;
-			args[i].thisThread = &pool.pool[i]._thread;
-			pthread_create(&pool.pool[i]._thread, NULL, ThreadListen, &args[i]);
-		}
 		clientArgs.app->pool = &pool;
+		InitThreadPool(&pool, clientArgs.app, ThreadListen, args);
 	}
 	while (1) {
 		//printf("等待连接中...");
@@ -126,23 +166,26 @@ void* ClientControl(ClientControlArgs clientArgs) {
 		ClientSolver* temp = (ClientSolver*)malloc(sizeof(ClientSolver));
 		temp->client = client;
 		temp->method = clientArgs.app->requestM;
+
 		if (clientArgs.pool_flag) {
 			/*curThread = GetThread(&pool);*/
 			if (PutTask(&pool, temp, 1)){
 				continue;
 			}
 			else {
+				printf("提交任务失败");
 				free(temp);
 			}
 		}
 		else {
-			pthread_t th;
-			pthread_create(&th, NULL, SolveClient, temp);
+			MyThread th;
+			CreateMyThread(SolveClient, temp);
 		}
 	}
 }
 
-void* SolveClient(ClientSolver* client,int threadId) {
+
+void* SolveClient(ClientSolver* client, int threadId) {
 	//是否处理成功
 	int flag = 404;
 	int socket_flag;
